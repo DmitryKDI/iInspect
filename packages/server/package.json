@@ -1,0 +1,46 @@
+{
+  "name": "@inspector/server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Серверная часть «Инспектор ИИ» (ТЗ 1.5): REST API, БД, очередь задач ML",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "openapi": "tsx scripts/openapi.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/multipart": "^10.1.2",
+    "@fastify/swagger": "^9.9.0",
+    "@node-projects/acad-ts": "^3.2.0",
+    "amqplib": "^2.2.0",
+    "better-sqlite3-multiple-ciphers": "^13.0.3",
+    "docx": "^9.8.0",
+    "fast-xml-parser": "^5.11.1",
+    "fastify": "^5.12.5",
+    "ioredis": "^6.0.0",
+    "jszip": "^3.10.2",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.20.2",
+    "pino": "^10.3.1",
+    "prom-client": "^15.1.3",
+    "undici": "^8.11.2"
+  },
+  "devDependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@types/amqplib": "^0.10.8",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.3",
+    "@types/pdfkit": "^0.17.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

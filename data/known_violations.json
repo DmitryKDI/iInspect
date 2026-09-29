@@ -1,0 +1,10 @@
+{
+  "_комментарий": [
+    "Blind-run policy: runtime prompts must not receive known violation examples during validation.",
+    "Ground truth and historical examples are intentionally kept outside the runtime path.",
+    "Evaluation is performed only after a run has completed, by an external evaluator.",
+    "Do not add benchmark cases, room numbers, expected findings, or benchmark-derived hints here.",
+    "If historical examples are used later in production, keep them in a separate production-only source that is never mounted for blind validation."
+  ],
+  "examples": []
+}

@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { color-scheme: light; }
+  body {
+    @apply bg-surface-muted text-ink font-sans antialiased;
+  }
+  /* Видимый фокус клавиатуры обязателен. */
+  :focus-visible {
+    outline: 2px solid #5B5BD6;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .card { @apply bg-surface border border-surface-line rounded-card shadow-card; }
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply btn bg-accent text-white hover:bg-accent-hover; }
+  .btn-ghost { @apply btn border border-surface-line bg-surface text-ink hover:bg-surface-muted; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium; }
+  .th { @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint; }
+  .td { @apply px-3 py-2 align-top text-sm; }
+  .input {
+    @apply w-full rounded-md border border-surface-line bg-surface px-3 py-2 text-sm
+           placeholder:text-ink-faint focus:border-accent focus:outline-none;
+  }
+}
+
+/* Соблюдение системной настройки уменьшенного движения. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .card { box-shadow: none; border-color: #999; break-inside: avoid; }
+}

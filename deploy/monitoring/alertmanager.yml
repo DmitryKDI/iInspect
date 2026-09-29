@@ -1,0 +1,21 @@
+# Доставка алертов администратору (ТЗ 13, п.7): почта и Telegram.
+# Адреса, пароль почты и токен бота задаются на стенде: пароль и токен —
+# файлами в ./secrets (smtp.password, telegram.token), в git они не идут.
+# chat_id и адреса ниже — заглушки, замените при развёртывании.
+route:
+  receiver: admin
+  group_by: [alertname]
+  repeat_interval: 4h
+receivers:
+  - name: admin
+    email_configs:
+      - to: admin@example.invalid
+        from: inspector@example.invalid
+        smarthost: mail.example.invalid:587
+        auth_username: inspector@example.invalid
+        auth_password_file: /etc/alertmanager/secrets/smtp.password
+        send_resolved: true
+    telegram_configs:
+      - chat_id: 0
+        bot_token_file: /etc/alertmanager/secrets/telegram.token
+        send_resolved: true

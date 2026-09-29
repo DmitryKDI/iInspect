@@ -1,0 +1,33 @@
+# Сбор метрик «Инспектора ИИ» (ТЗ 13, п.4–5).
+global:
+  scrape_interval: 15s
+rule_files:
+  - /etc/prometheus/alerts.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+scrape_configs:
+  # Сервер: запросы, время ответа, 5xx, активные сессии, очереди RabbitMQ,
+  # ожидающие передачи в РиН, целостность, CPU, память, диск.
+  - job_name: inspector-server
+    metrics_path: /metrics
+    # Токен учётной записи роли service: POST /api/v1/auth/login, поле token.
+    # Файл кладётся при развёртывании и в git не идёт.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics-token
+    static_configs:
+      - targets: ["server:8010"]
+  # ML-модули: внутренний REST, кэш разбора, CPU и память процесса.
+  - job_name: inspector-ml
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/internal-token
+    static_configs:
+      - targets: ["ml-api:8090"]
+  # Очередь сообщений: встроенный экспортёр RabbitMQ.
+  - job_name: rabbitmq
+    static_configs:
+      - targets: ["rabbitmq:15692"]

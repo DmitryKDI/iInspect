@@ -1,0 +1,49 @@
+# Алерты (ТЗ 13, п.7). Доставка администратору по почте и в Telegram —
+# через Alertmanager (deploy/monitoring/alertmanager.yml, receivers email_configs и
+# telegram_configs), адреса и токены задаются там, а не в репозитории.
+groups:
+  - name: inspector
+    rules:
+      - alert: HighCpu
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        annotations:
+          summary: "Загрузка CPU сервиса выше 80%"
+      - alert: SlowResponses
+        expr: >
+          rate(inspector_http_request_duration_seconds_sum[5m])
+          / rate(inspector_http_request_duration_seconds_count[5m]) > 0.5
+        for: 10m
+        annotations:
+          summary: "Среднее время ответа выше 500 мс"
+      - alert: ServerErrors
+        expr: increase(inspector_http_5xx_total[5m]) > 0
+        annotations:
+          summary: "Ответы 5xx"
+      - alert: DiskAlmostFull
+        expr: inspector_disk_used_ratio > 0.9
+        annotations:
+          summary: "Диск заполнен более чем на 90%"
+      - alert: IntegrityFailure
+        expr: inspector_integrity_failures > 0
+        annotations:
+          summary: "Проверка контрольных сумм нашла повреждённые файлы"
+      - alert: ExternalSyncPending
+        expr: inspector_pending_sync > 0
+        for: 30m
+        annotations:
+          summary: "Протоколы не переданы во внешнюю систему более 30 минут"
+      - alert: QueueBacklog
+        expr: inspector_queue_parse_size + inspector_queue_inspect_size > 50
+        for: 15m
+        annotations:
+          summary: "Очередь задач ML растёт более 15 минут"
+      - alert: ProcessingFailed
+        expr: increase(inspector_tasks_failed[15m]) > 0
+        annotations:
+          summary: "Задача разбора или проверки не выполнена после повторов (ТЗ 9.1)"
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        annotations:
+          summary: "Сервис не отвечает на сбор метрик"

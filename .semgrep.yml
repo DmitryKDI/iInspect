@@ -1,0 +1,41 @@
+rules:
+  - id: no-sql-string-concatenation
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Конкатенация SQL запрещена. Все запросы выполняются через ORM
+      с параметризацией.
+    patterns:
+      - pattern-either:
+          - pattern: $CONN.execute("..." + $X)
+          - pattern: $CONN.execute(f"...")
+          - pattern: sqlalchemy.text(f"...")
+
+  - id: no-document-content-in-logs
+    languages: [python]
+    severity: WARNING
+    message: >-
+      В журналы не должны попадать содержимое документов и персональные данные.
+      Маскируйте секреты перед логированием.
+    patterns:
+      - pattern-either:
+          - pattern: logging.$LEVEL(..., $FACT.value, ...)
+          - pattern: logger.$LEVEL(..., $DOC.text, ...)
+
+  - id: no-verify-false
+    languages: [python]
+    severity: ERROR
+    message: Отключение проверки сертификата TLS запрещено.
+    patterns:
+      - pattern-either:
+          - pattern: httpx.AsyncClient(..., verify=False, ...)
+          - pattern: requests.$M(..., verify=False, ...)
+
+  - id: llm-output-must-be-validated
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Ответ модели используется без валидации по строгой схеме.
+      Разбирайте ответ модели строго, с проверкой структуры.
+    patterns:
+      - pattern: json.loads($RESPONSE.raw_text)

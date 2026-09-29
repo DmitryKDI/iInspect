@@ -1,0 +1,370 @@
+name: inspector-ai
+
+# «Инспектор ИИ» — закрытый контур без Интернета. Запуск: `docker compose up -d`
+# (секреты — `scripts/make-secrets.sh`, офлайн-комплект — scripts/offline).
+#
+# Архитектура ТЗ 1.5:
+#   frontend  — интерфейс (React), nginx: TLS 1.3, проксирует /api на сервер
+#   server    — сервер (Node.js): REST API /api/v1, база SQLCipher, хранилище
+#               оригиналов AES-256-GCM, журналы, РиН, фоновые задачи
+#   ml-worker — ML-модули (Python): разбор и проверка из очереди RabbitMQ
+#   ml-api    — ML-модули (Python): внутренний REST для сервера
+#   llm       — локальная модель (vLLM) на GPU
+#   rabbitmq  — очередь задач между сервером и ML-модулями
+#   redis     — кэш разбора по хешу файла (зашифрованный), флаги остановки
+#   clamav    — антивирус загружаемых файлов (ТЗ 12, п.11)
+# Профили: monitoring — Prometheus, Grafana, Alertmanager (ТЗ 13, п.5, 7);
+#          logging — Elasticsearch, Logstash, Kibana (ТЗ 13, п.3).
+#
+# Сети: `contour` — internal, выхода наружу нет ни у одного контейнера в ней.
+# Наружу (сеть `edge`) публикуется только интерфейс и, для внешних систем,
+# REST API сервера. Разовый сервис `models` в сети `edge` скачивает веса в
+# ./models, только если их там нет, и завершается до старта модели.
+#
+# Стенд проверки: 1× H100 80 ГБ (может быть общим для нескольких команд),
+# 24 ядра / 48 потоков, до 640 ГБ ОЗУ. Лимиты ниже в сумме укладываются в
+# эти рамки; драйвер NVIDIA ставится на хост, CUDA runtime входит в образ
+# vLLM, GPU передаётся через NVIDIA Container Toolkit.
+
+x-offline-env: &offline-env
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  HF_DATASETS_OFFLINE: "1"
+  VLLM_NO_USAGE_STATS: "1"
+  DO_NOT_TRACK: "1"
+
+x-ml-env: &ml-env
+  <<: *offline-env
+  INSPECTOR_SERVER_URL: http://server:8010
+  INSPECTOR_AMQP_URL: amqp://inspector:${INSPECTOR_AMQP_PASSWORD:?запустите scripts/make-secrets.sh}@rabbitmq:5672/
+  INSPECTOR_REDIS_URL: redis://:${INSPECTOR_REDIS_PASSWORD:?запустите scripts/make-secrets.sh}@redis:6379/0
+  INSPECTOR_LOCAL_LLM_URL: http://llm:8000
+  INSPECTOR_LOCAL_LLM_MODEL: ${INSPECTOR_LOCAL_LLM_MODEL:-Qwen/Qwen2.5-VL-7B-Instruct}
+  INSPECTOR_LLM_CONCURRENCY: ${INSPECTOR_LLM_CONCURRENCY:-8}
+  INSPECTOR_OCR_LANGUAGE: ${INSPECTOR_OCR_LANGUAGE:-rus+eng}
+  INSPECTOR_ALLOWED_HOSTS: ${INSPECTOR_ALLOWED_HOSTS:-}
+  INSPECTOR_LOG_DIR: /app/logs/ml
+
+services:
+  models:
+    # Веса моделей: Яндекс.Диск команды, при недоступности — Hugging Face.
+    # Полные веса в ./models не качаются повторно (стенд без сети тоже работает).
+    image: python:3.12-slim-bookworm
+    command: ["python", "/fetch_models.py", "/models"]
+    environment:
+      INSPECTOR_MODELS_URL: ${INSPECTOR_MODELS_URL:-}
+    volumes:
+      - ./models:/models
+      - ./scripts/fetch_models.py:/fetch_models.py:ro
+    networks: [edge]
+    restart: "no"
+
+  llm:
+    # Версия закреплена; prepare_bundle.sh скачивает образ по дайджесту.
+    image: vllm/vllm-openai:v0.28.0
+    entrypoint: ["vllm", "serve"]
+    command:
+      - /models/${INSPECTOR_MODEL_DIR:-Qwen2.5-VL-7B-Instruct}
+      - --served-model-name
+      - ${INSPECTOR_LOCAL_LLM_MODEL:-Qwen/Qwen2.5-VL-7B-Instruct}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --max-model-len
+      - "${INSPECTOR_LLM_MAX_MODEL_LEN:-32768}"
+      # Доля памяти GPU. На стенде GPU может быть общим для нескольких
+      # команд: vLLM резервирует долю от ВСЕЙ памяти, поэтому значение
+      # задаётся в .env под фактически свободный объём (7B-модели хватает 0.5).
+      - --gpu-memory-utilization
+      - "${INSPECTOR_LLM_GPU_MEMORY:-0.85}"
+      - --limit-mm-per-prompt
+      - '{"image": 6}'
+      - --mm-processor-kwargs
+      - '{"max_pixels": 3211264}'
+      - --seed
+      - "0"
+    environment:
+      <<: *offline-env
+      NVIDIA_VISIBLE_DEVICES: ${INSPECTOR_GPU:-0}
+    depends_on:
+      models: { condition: service_completed_successfully }
+    volumes:
+      - ./models:/models:ro
+    ipc: host
+    deploy:
+      resources:
+        limits: { cpus: "8", memory: 96g }
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks: [contour]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 900s  # загрузка весов в память GPU
+    restart: unless-stopped
+
+  server:
+    build: { context: ., dockerfile: docker/server.Dockerfile }
+    image: inspector-ai/server:local
+    environment:
+      INSPECTOR_PORT: "8010"
+      INSPECTOR_AMQP_URL: amqp://inspector:${INSPECTOR_AMQP_PASSWORD:?запустите scripts/make-secrets.sh}@rabbitmq:5672/
+      INSPECTOR_REDIS_URL: redis://:${INSPECTOR_REDIS_PASSWORD:?запустите scripts/make-secrets.sh}@redis:6379/0
+      INSPECTOR_ML_URL: http://ml-api:8090
+      INSPECTOR_CLAMD_HOST: clamav
+      INSPECTOR_LOG_DIR: /app/logs/server
+      INSPECTOR_BACKUP_DIR: /app/backups
+      INSPECTOR_ADMIN_LOGIN: ${INSPECTOR_ADMIN_LOGIN:-admin}
+      INSPECTOR_ADMIN_PASSWORD: ${INSPECTOR_ADMIN_PASSWORD:-admin}
+      # 1 — cookie сессии только по HTTPS (интерфейс на 5443).
+      INSPECTOR_COOKIE_SECURE: "1"
+      INSPECTOR_DATASET_VERSION: ${INSPECTOR_DATASET_VERSION:-none}
+      INSPECTOR_PARSE_TIMEOUT_S: ${INSPECTOR_PARSE_TIMEOUT_S:-900}
+      INSPECTOR_INSPECT_TIMEOUT_S: ${INSPECTOR_INSPECT_TIMEOUT_S:-3600}
+      # ИАИС «РиН» (ТЗ 9.6): пусто — передача выключена (LOCAL_ONLY).
+      INSPECTOR_RIN_URL: ${INSPECTOR_RIN_URL:-}
+      INSPECTOR_RIN_CLIENT_CERT: ${INSPECTOR_RIN_CLIENT_CERT:-}
+      INSPECTOR_RIN_CLIENT_KEY: ${INSPECTOR_RIN_CLIENT_KEY:-}
+      INSPECTOR_RIN_CA: ${INSPECTOR_RIN_CA:-}
+      INSPECTOR_ALLOWED_HOSTS: ${INSPECTOR_ALLOWED_HOSTS:-}
+    secrets: [db.key, storage.key, internal.token]
+    volumes:
+      - inspector-state:/app/state
+      - inspector-backups:/app/backups
+      - inspector-logs:/app/logs
+      - ./certs:/certs:ro
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      clamav: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 16g }
+    networks: [contour, edge]
+    restart: unless-stopped
+
+  ml-worker:
+    build: { context: ., dockerfile: docker/ml.Dockerfile }
+    image: inspector-ai/ml:local
+    command: ["python", "-m", "app.worker"]
+    environment:
+      <<: *ml-env
+      INSPECTOR_SERVICE: inspector-ml-worker
+    secrets: [internal.token, cache.key]
+    volumes:
+      - ./models:/models:ro
+      - inspector-logs:/app/logs
+    tmpfs:
+      # Расшифрованные файлы задачи — только в памяти и только на время задачи.
+      - /tmp/inspector-ml:size=8g,uid=10001
+    depends_on:
+      models: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    deploy:
+      # Одна задача на реплику; параллельность — числом реплик.
+      replicas: ${INSPECTOR_ML_WORKERS:-4}
+      resources:
+        limits: { cpus: "5", memory: 48g }
+    networks: [contour]
+    restart: unless-stopped
+
+  ml-api:
+    image: inspector-ai/ml:local
+    environment:
+      <<: *ml-env
+      INSPECTOR_SERVICE: inspector-ml-api
+    secrets: [internal.token, cache.key]
+    volumes:
+      - ./models:/models:ro
+      - inspector-logs:/app/logs
+    tmpfs:
+      - /tmp/inspector-ml:size=2g,uid=10001
+    depends_on:
+      models: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      ml-worker: { condition: service_started }
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 16g }
+    networks: [contour]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: inspector
+      RABBITMQ_DEFAULT_PASS: ${INSPECTOR_AMQP_PASSWORD:?запустите scripts/make-secrets.sh}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 4g }
+    networks: [contour]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--requirepass", "${INSPECTOR_REDIS_PASSWORD:?запустите scripts/make-secrets.sh}",
+              "--maxmemory", "24gb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 32g }
+    networks: [contour]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${INSPECTOR_REDIS_PASSWORD:?запустите scripts/make-secrets.sh}
+    restart: unless-stopped
+
+  clamav:
+    # Базы сигнатур без Интернета обновляются с зеркала заказчика
+    # (том clamav-db); офлайн-комплект кладёт в него базы на дату сборки.
+    image: clamav/clamav:1.4
+    volumes:
+      - clamav-db:/var/lib/clamav
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 8g }
+    networks: [contour]
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+    restart: unless-stopped
+
+  frontend:
+    build: { context: ., dockerfile: docker/frontend.Dockerfile }
+    image: inspector-ai/frontend:local
+    depends_on:
+      server: { condition: service_healthy }
+    volumes:
+      # Внешний интерфейс и REST API доступны только по TLS 1.3 на порту 5443.
+      - ./certs:/etc/nginx/certs:ro
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1g }
+    networks: [edge]
+    ports:
+      - "5443:5443"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # --- Мониторинг (ТЗ 13, п.4–7): docker compose --profile monitoring up -d ---
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [monitoring]
+    volumes:
+      - ./deploy/monitoring:/etc/prometheus:ro
+      - ./secrets/internal.token:/etc/prometheus/internal-token:ro
+    networks: [contour, edge]
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [monitoring]
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./secrets:/etc/alertmanager/secrets:ro
+    networks: [contour, edge]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [monitoring]
+    volumes:
+      - ./deploy/monitoring/grafana:/etc/grafana/provisioning:ro
+    networks: [contour, edge]
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # --- Централизованные логи (ТЗ 13, п.3): docker compose --profile logging up -d ---
+  elasticsearch:
+    image: elasticsearch:8.18.2
+    profiles: [logging]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms4g -Xmx4g
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 16g }
+    networks: [contour]
+    restart: unless-stopped
+
+  logstash:
+    image: logstash:8.18.2
+    profiles: [logging]
+    volumes:
+      - ./deploy/logging/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - inspector-logs:/logs:ro
+    depends_on: [elasticsearch]
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 4g }
+    networks: [contour]
+    restart: unless-stopped
+
+  kibana:
+    image: kibana:8.18.2
+    profiles: [logging]
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on: [elasticsearch]
+    networks: [contour, edge]
+    ports:
+      - "5601:5601"
+    restart: unless-stopped
+
+secrets:
+  db.key: { file: ./secrets/db.key }
+  storage.key: { file: ./secrets/storage.key }
+  internal.token: { file: ./secrets/internal.token }
+  cache.key: { file: ./secrets/cache.key }
+
+networks:
+  contour:
+    internal: true
+  edge: {}
+
+volumes:
+  inspector-state: {}
+  inspector-backups: {}
+  inspector-logs: {}
+  rabbitmq-data: {}
+  redis-data: {}
+  clamav-db: {}
+  elastic-data: {}

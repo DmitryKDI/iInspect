@@ -1,0 +1,2553 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Инспектор ИИ — API",
+    "version": "1.0.0",
+    "description": "Сверка проектной, рабочей и исполнительной документации по матрице из 132 параметров. Асинхронная pull-модель: загрузка возвращает process_id, результат забирается по нему."
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "cookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "inspector_session"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Вход по логину и паролю",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "login",
+                  "password"
+                ],
+                "properties": {
+                  "login": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Токен сессии и пользователь",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Токен сессии и пользователь",
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Выход",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Текущий пользователь",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Пользователь",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Пользователь",
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "summary": "Состояние сессии (без ошибки, если вход не выполнен)",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password": {
+      "post": {
+        "summary": "Сменить свой пароль",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "new_password"
+                ],
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "summary": "Пользователи",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Создать пользователя",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "login",
+                  "password",
+                  "role"
+                ],
+                "properties": {
+                  "login": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "inspector",
+                      "supervisor",
+                      "admin",
+                      "ml_engineer",
+                      "service"
+                    ]
+                  },
+                  "full_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}": {
+      "patch": {
+        "summary": "Изменить пользователя",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "inspector",
+                      "supervisor",
+                      "admin",
+                      "ml_engineer",
+                      "service"
+                    ]
+                  },
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "user_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/integrity": {
+      "get": {
+        "summary": "Проверки целостности хранилища",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Проверить целостность хранилища сейчас",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups": {
+      "get": {
+        "summary": "Состояние резервного копирования",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Снять полную резервную копию сейчас",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "summary": "Журнал аудита",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "user",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "action",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/parameters": {
+      "get": {
+        "summary": "Матрица контроля (132 параметра)",
+        "tags": [
+          "matrix"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "summary": "Загруженные документы",
+        "tags": [
+          "documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "object_id",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "with_stage",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Загрузить один документ (интерфейс инспектора)",
+        "tags": [
+          "documents"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Документ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Документ",
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/metadata": {
+      "put": {
+        "summary": "Карточка документа: стадия, шифр, редакция, утверждение",
+        "tags": [
+          "documents"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "object_id",
+                  "file_id",
+                  "stage",
+                  "discipline",
+                  "document_code",
+                  "revision",
+                  "approval_status",
+                  "signature_status",
+                  "sheet_page_range"
+                ],
+                "properties": {
+                  "object_id": {
+                    "type": "string"
+                  },
+                  "file_id": {
+                    "type": "string"
+                  },
+                  "stage": {
+                    "type": "string",
+                    "enum": [
+                      "PD",
+                      "RD",
+                      "ID"
+                    ]
+                  },
+                  "discipline": {
+                    "type": "string"
+                  },
+                  "document_code": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "string"
+                  },
+                  "approval_status": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "APPROVED",
+                      "FOR_CONSTRUCTION",
+                      "SUPERSEDED",
+                      "CANCELLED"
+                    ]
+                  },
+                  "approval_date": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "predecessor_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "signature_status": {
+                    "type": "string"
+                  },
+                  "sheet_page_range": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "document_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "delete": {
+        "summary": "Удалить документ, не вошедший в протокол",
+        "tags": [
+          "documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "document_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/pages/{page}/image": {
+      "get": {
+        "summary": "Изображение листа для карточки доказательства",
+        "tags": [
+          "documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "document_id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "page",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/documents/upload": {
+      "post": {
+        "summary": "Загрузить документы и получить process_id",
+        "tags": [
+          "api-v1"
+        ],
+        "description": "Пакет PDF/DOCX/XML (и чертежи DWG/DXF) с реестром файлов CSV/XLSX/JSON. Ответ сразу содержит process_id; проверка идёт асинхронно, статус — GET /api/v1/processes/{process_id}/status. С process_id — дозагрузка до финализации протокола.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "files"
+                ],
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "registry": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "process_id": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Процесс создан или дополнен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "process_id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "PARSING",
+                        "READY",
+                        "VERIFYING",
+                        "COMPLETED",
+                        "FINALIZED",
+                        "ERROR",
+                        "CANCELLED"
+                      ]
+                    },
+                    "upload_status": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "PD_UPLOADED | PD_PARTIAL | PD_MISSING и так же для RD, ID"
+                    },
+                    "scenario": {
+                      "type": "string",
+                      "enum": [
+                        "FULL",
+                        "PD_RD_ONLY",
+                        "PD_ID_ONLY",
+                        "RD_ID_ONLY",
+                        "SINGLE_ONLY",
+                        "PARTIALLY_LOADED",
+                        "NO_DOCUMENTS"
+                      ]
+                    },
+                    "accepted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "rejected": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "notice": {
+                      "type": "string"
+                    }
+                  },
+                  "description": "Процесс создан или дополнен"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/processes": {
+      "get": {
+        "summary": "Процессы проверки",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "object_id",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Запустить проверку по уже загруженным документам",
+        "tags": [
+          "api-v1"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "object_id",
+                  "document_ids"
+                ],
+                "properties": {
+                  "object_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "document_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/status": {
+      "get": {
+        "summary": "Мониторинг статуса процесса",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Статус процесса",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Статус процесса",
+                  "type": "object",
+                  "properties": {
+                    "process_id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "PARSING",
+                        "READY",
+                        "VERIFYING",
+                        "COMPLETED",
+                        "FINALIZED",
+                        "ERROR",
+                        "CANCELLED"
+                      ]
+                    },
+                    "run_state": {
+                      "type": "string"
+                    },
+                    "verification_status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "VERIFICATION_COMPLETED",
+                        "PROTOCOL_FINALIZED"
+                      ]
+                    },
+                    "stage": {
+                      "type": "string"
+                    },
+                    "completed": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "protocol_version": {
+                      "type": "integer"
+                    },
+                    "sync_status": {
+                      "type": "string",
+                      "enum": [
+                        "NOT_SENT",
+                        "LOCAL_ONLY",
+                        "SENT",
+                        "PENDING_SYNC",
+                        "SEND_FAILED",
+                        "SEND_REFUSED"
+                      ]
+                    },
+                    "scenario": {
+                      "type": "string",
+                      "enum": [
+                        "FULL",
+                        "PD_RD_ONLY",
+                        "PD_ID_ONLY",
+                        "RD_ID_ONLY",
+                        "SINGLE_ONLY",
+                        "PARTIALLY_LOADED",
+                        "NO_DOCUMENTS"
+                      ]
+                    },
+                    "upload_status": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Причина отказа словами: что произошло и что сделать.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "detail": {}
+                  },
+                  "description": "Причина отказа словами: что произошло и что сделать."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}": {
+      "get": {
+        "summary": "Протокол и результат процесса",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/cancel": {
+      "post": {
+        "summary": "Остановить проверку",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/decisions": {
+      "post": {
+        "summary": "Решение инспектора по кандидату",
+        "tags": [
+          "api-v1"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "finding_id",
+                  "status",
+                  "reason",
+                  "expected_version"
+                ],
+                "properties": {
+                  "finding_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED_VIOLATION",
+                      "NEGATIVE_VERIFIED",
+                      "CLARIFICATION_REQUIRED",
+                      "CANDIDATE"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "reason_code": {
+                    "type": "string"
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "author": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/findings/{finding_id}/split": {
+      "post": {
+        "summary": "Разделить составной кандидат на атомарные findings",
+        "tags": [
+          "api-v1"
+        ],
+        "description": "ТЗ 9.3, п.2: каждая часть получает свои expected/actual и доказательства из карточки кандидата (индексы evidence) с координатами в двух стадиях; решение принимается по каждой части.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason",
+                  "expected_version",
+                  "parts"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "parts": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "expected_value",
+                        "actual_value",
+                        "evidence_indexes"
+                      ],
+                      "properties": {
+                        "expected_value": {
+                          "type": "string"
+                        },
+                        "actual_value": {
+                          "type": "string"
+                        },
+                        "evidence_indexes": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "finding_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/finalize": {
+      "post": {
+        "summary": "Финализировать протокол («Завершить»)",
+        "tags": [
+          "api-v1"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "author": {
+                    "type": "string"
+                  }
+                },
+                "nullable": true
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/unfinalize": {
+      "post": {
+        "summary": "Отменить финализацию (администратор или супервизор)",
+        "tags": [
+          "api-v1"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/events": {
+      "get": {
+        "summary": "Журнал событий протокола",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/suspicions": {
+      "get": {
+        "summary": "Гипотезы свободного поиска (ТЗ 9.5)",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/suspicions/{suspicion_id}": {
+      "post": {
+        "summary": "Решение по гипотезе свободного поиска",
+        "tags": [
+          "api-v1"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "promote",
+                      "dismiss",
+                      "confirm",
+                      "reject"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "reason_code": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {},
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "suspicion_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/processes/{process_id}/export": {
+      "get": {
+        "summary": "Протокол в JSON, XML, DOCX, PDF (или таблица проверок CSV)",
+        "tags": [
+          "api-v1"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "xml",
+                "docx",
+                "pdf",
+                "csv"
+              ],
+              "default": "json"
+            },
+            "in": "query",
+            "name": "format",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/inspection/{process_id}": {
+      "post": {
+        "summary": "Передача результатов в ИАИС «РиН»",
+        "tags": [
+          "api-v1"
+        ],
+        "description": "Только для финализированного протокола. Передаются подтверждённые инспектором записи, версии протокола, матрицы и модели и реестр входных файлов. Недоступность приёмника — PENDING_SYNC и повторы через 1, 5 и 15 минут.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "process_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/params": {
+      "get": {
+        "summary": "Параметры матрицы (включая неактивные)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/params/{code}": {
+      "patch": {
+        "summary": "Изменить параметр матрицы (пороги, ссылки, шаблон, активность)",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "trigger_logic": {
+                    "type": "string"
+                  },
+                  "review_priority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ]
+                  },
+                  "sp_reference": {
+                    "type": "string"
+                  },
+                  "gost_reference": {
+                    "type": "string"
+                  },
+                  "fz_reference": {
+                    "type": "string"
+                  },
+                  "other_normative": {
+                    "type": "string"
+                  },
+                  "data_type": {
+                    "type": "string",
+                    "enum": [
+                      "number",
+                      "string",
+                      "boolean",
+                      "coordinate",
+                      "enum"
+                    ]
+                  },
+                  "min_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "max_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "regex_pattern": {
+                    "type": "string"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  },
+                  "clear_min_value": {
+                    "type": "boolean"
+                  },
+                  "clear_max_value": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-ZА-Я]{1,4}-\\d{1,4}$"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/normative": {
+      "get": {
+        "summary": "Нормативная база",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Добавить нормативную ссылку",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "document_name",
+                  "document_number"
+                ],
+                "properties": {
+                  "document_name": {
+                    "type": "string"
+                  },
+                  "document_number": {
+                    "type": "string"
+                  },
+                  "section": {
+                    "type": "string"
+                  },
+                  "parameter_name": {
+                    "type": "string"
+                  },
+                  "min_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "max_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "effective_from": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "effective_to": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/normative/{item_id}": {
+      "put": {
+        "summary": "Изменить или деактивировать нормативную ссылку",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "document_name",
+                  "document_number"
+                ],
+                "properties": {
+                  "document_name": {
+                    "type": "string"
+                  },
+                  "document_number": {
+                    "type": "string"
+                  },
+                  "section": {
+                    "type": "string"
+                  },
+                  "parameter_name": {
+                    "type": "string"
+                  },
+                  "min_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "max_value": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "effective_from": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "effective_to": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "item_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rules": {
+      "get": {
+        "summary": "Логические правила свободного поиска",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Добавить логическое правило",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rule_name",
+                  "condition",
+                  "expected"
+                ],
+                "properties": {
+                  "rule_name": {
+                    "type": "string"
+                  },
+                  "condition": {
+                    "type": "string"
+                  },
+                  "expected": {
+                    "type": "string"
+                  },
+                  "normative_base": {
+                    "type": "string"
+                  },
+                  "review_priority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ]
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rules/{item_id}": {
+      "put": {
+        "summary": "Изменить или деактивировать правило",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rule_name",
+                  "condition",
+                  "expected"
+                ],
+                "properties": {
+                  "rule_name": {
+                    "type": "string"
+                  },
+                  "condition": {
+                    "type": "string"
+                  },
+                  "expected": {
+                    "type": "string"
+                  },
+                  "normative_base": {
+                    "type": "string"
+                  },
+                  "review_priority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ]
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "item_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/dataset/items": {
+      "get": {
+        "summary": "Записи набора данных",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "APPROVED",
+                "EXCLUDED",
+                "SUPERSEDED"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/dataset/items/{item_id}/curate": {
+      "post": {
+        "summary": "Решение куратора по записи",
+        "tags": [
+          "ml"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "approve"
+                ],
+                "properties": {
+                  "approve": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "item_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/dataset/versions": {
+      "post": {
+        "summary": "Выпустить dataset_version",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "summary": "Выпуски набора данных",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/dataset/versions/{version}/evaluate": {
+      "get": {
+        "summary": "Метрики машинных результатов на выборке выпуска",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TRAIN",
+                "VALIDATION",
+                "HIDDEN_TEST"
+              ],
+              "default": "HIDDEN_TEST"
+            },
+            "in": "query",
+            "name": "split",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "version",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/dataset/versions/{version}/export": {
+      "get": {
+        "summary": "Выпуск набора в полях листа «Схема GOLD» (JSON или CSV)",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "default": "json"
+            },
+            "in": "query",
+            "name": "format",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "version",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/evaluate": {
+      "post": {
+        "summary": "Метрики по эталонной разметке (лист «Метрики», ТЗ 14.3)",
+        "tags": [
+          "ml"
+        ],
+        "description": "Эталон читается только на время расчёта: он не сохраняется и не пишется в журнал.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reference",
+                  "process_ids"
+                ],
+                "properties": {
+                  "reference": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": true
+                      },
+                      {
+                        "type": "array"
+                      }
+                    ]
+                  },
+                  "process_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/rejections": {
+      "get": {
+        "summary": "Лог отклонений",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/disputes": {
+      "get": {
+        "summary": "Спорные случаи",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models": {
+      "get": {
+        "summary": "Итерации дообучения и реестр моделей",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Зарегистрировать результат обучения",
+        "tags": [
+          "ml"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "model_version",
+                  "dataset_version",
+                  "precision",
+                  "recall",
+                  "f1",
+                  "false_positive_rate"
+                ],
+                "properties": {
+                  "model_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "dataset_version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "artifact_hash": {
+                    "type": "string"
+                  },
+                  "precision": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "recall": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "f1": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "false_positive_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "per_category_metrics": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "training_params": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "code_ref": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/{model_id}/approve": {
+      "post": {
+        "summary": "Подписать публикацию модели",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "model_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/{model_id}/reject": {
+      "post": {
+        "summary": "Отклонить модель",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "model_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/{model_id}/rollback": {
+      "post": {
+        "summary": "Откатить опубликованную модель",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "model_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/report": {
+      "get": {
+        "summary": "Отчёт по дообучению за период",
+        "tags": [
+          "ml"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366,
+              "default": 7
+            },
+            "in": "query",
+            "name": "days",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/ml/reports": {
+      "get": {
+        "summary": "Сохранённые отчёты",
+        "tags": [
+          "ml"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Состояние сервиса",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Метрики Prometheus (ТЗ 13, п.4–5)",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/llm-check": {
+      "get": {
+        "summary": "Проверка связи с локальной моделью",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "summary": "Лимиты загрузки и хранения",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Изменить лимиты (ТЗ 9.1: 50 МБ на файл, 200 МБ на пакет)",
+        "tags": [
+          "system"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "max_upload_mb": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  },
+                  "max_package_mb": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200
+                  },
+                  "max_pages": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "retention_days": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Уведомления пользователя по роли",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "unread",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "post": {
+        "summary": "Отметить уведомление прочитанным",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "path",
+            "name": "notification_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "summary": "Объекты с цветовой индикацией (модуль 7)",
+        "tags": [
+          "dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "section",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "green",
+                "yellow",
+                "red"
+              ]
+            },
+            "in": "query",
+            "name": "color",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "date_from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "date_to",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "summary": "Версия работающего кода",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    },
+    {
+      "cookie": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Разработка ML-модулей: зависимости рантайма и инструменты проверки.
+-r packages/ml/requirements.txt
+fakeredis==2.26.2
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==5.0.0
+ruff==0.7.1
+bandit==1.7.10
+pip-audit==2.7.3

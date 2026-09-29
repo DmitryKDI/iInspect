@@ -1,0 +1,43 @@
+.venv/
+.venv-check/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+data/storage/
+*.db
+*.db-wal
+*.db-shm
+node_modules/
+dist/
+.coverage
+htmlcov/
+frontend/node_modules/
+frontend/dist/
+frontend/dev-dist/
+logs/
+run_logs/
+.setup-stamps/
+
+# Кэш ответов модели и диагностика прогонов — это локальные артефакты
+# работы, а не исходники. В логах прогонов встречаются имена документов
+# реального объекта, поэтому в git они не идут (Г.12).
+*.sqlite3
+data/run_logs/
+
+# Веса локальной модели и офлайн-комплект образов: гигабайты, в git и в
+# контекст сборки не идут. Поставляются отдельно (scripts/offline).
+models/
+bundle/
+*.tsbuildinfo
+
+# Пароль администратора, сгенерированный при первом запуске.
+initial-admin-password.txt
+
+# Сертификаты TLS и токен сбора метрик — только на стенде, не в git.
+certs/*
+!certs/.gitkeep
+deploy/monitoring/metrics-token
+
+# Ключи и токены контура (scripts/make-secrets.sh) — только на стенде.
+secrets/
