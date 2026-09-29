@@ -7,3 +7,4 @@
 # например `cd: $'./scripts/..\r': No such file or directory`). На машине
 # с git core.autocrlf=true без этого правила чекаут молча портит скрипты.
 *.sh text eol=lf
+* text=auto eol=lf
