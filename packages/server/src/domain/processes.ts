@@ -244,8 +244,17 @@ export function finalize(ctx: Context, processId: number, actor: Actor): void {
   if (proc.run_state !== 'completed' || !proc.result) {
     throw conflict('финализировать можно только сформированный протокол')
   }
-  const pending = protocol.pendingCandidates(view(ctx, proc).result)
+  const result = view(ctx, proc).result
+  const pending = protocol.pendingCandidates(result)
   if (pending.length) throw conflict(`есть кандидаты без решения инспектора: ${pending.join(', ')}`)
+  // Техническая ошибка не финализируется как «нарушений нет»: если сбой модели
+  // оставил без проверки все параметры, протокол нечего подписывать.
+  const checks = resultChecks(result)
+  if (checks.some((item) => item.technical_status === 'error') &&
+    !checks.some((item) => item.technical_status === 'completed')) {
+    throw conflict('не проверен ни один параметр: проверка завершилась технической ошибкой модели. ' +
+      'Перезапустите проверку, когда модель будет доступна')
+  }
   const now = nowIso(ctx.now())
   ctx.db.transaction(() => {
     update(ctx, processId, { finalized_at: now, finalized_by: actor.display })

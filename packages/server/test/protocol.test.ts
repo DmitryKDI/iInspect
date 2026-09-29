@@ -77,6 +77,47 @@ describe('правила протокола', () => {
   })
 })
 
+describe('техническая ошибка не финализируется как «нарушений нет»', () => {
+  let s: Stand
+  beforeEach(async () => { s = await stand() })
+  afterEach(async () => { await s.close() })
+
+  async function run(checks: Record<string, unknown>[]) {
+    const token = await s.as('inspector')
+    const pd = await pdf(['PD'])
+    const rd = await pdf(['RD'])
+    const body = multipart([
+      { name: 'files', filename: 'pd.pdf', data: pd },
+      { name: 'files', filename: 'rd.pdf', data: rd },
+      { name: 'registry', filename: 'r.json', data: registry([
+        { file_id: 'PD-Z', file_name: 'pd.pdf', object_id: 'OBJ-Z', doc_stage: 'PD', discipline: 'АР',
+          document_code: 'Z-PD', revision: '1', approval_status: 'APPROVED', approval_date: '2026-01-10' },
+        { file_id: 'RD-Z', file_name: 'rd.pdf', object_id: 'OBJ-Z', doc_stage: 'RD', discipline: 'АР',
+          document_code: 'Z-RD', revision: '1', approval_status: 'APPROVED', approval_date: '2026-01-11' }],
+      { 'pd.pdf': pd, 'rd.pdf': rd }) },
+    ])
+    const processId = (await s.call('POST', '/api/v1/documents/upload', token, body.payload, body.headers))
+      .json().process_id
+    await answerParse(s)
+    await answerInspect(s, checks)
+    return s.call('POST', `/api/v1/processes/${processId}/finalize`, token, {})
+  }
+
+  it('ни один параметр не проверен из-за сбоя модели — финализация запрещена', async () => {
+    const failed = (code: string) => ({ ...check(code, null), completeness_status: 'NOT_COMPARABLE',
+      technical_status: 'error', explanation: 'ответ модели не разобран' })
+    const response = await run([failed('M-001'), failed('M-002')])
+    expect(response.statusCode).toBe(409)
+    expect(response.body).toMatch(/не проверен ни один параметр/)
+  })
+
+  it('всё требует уточнения из-за входных данных — финализация разрешена', async () => {
+    const unclear = (code: string) => ({ ...check(code, null), completeness_status: 'CLARIFICATION_REQUIRED',
+      technical_status: 'not_run', explanation: 'нет реестра' })
+    expect((await run([unclear('M-001'), unclear('M-002')])).statusCode).toBe(200)
+  })
+})
+
 describe('составной кандидат делится на атомарные findings (ТЗ 9.3, п.2)', () => {
   let s: Stand
   beforeEach(async () => { s = await stand() })
